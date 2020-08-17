@@ -84,4 +84,17 @@ class ClusteerResponse
 
         return $decode ? base64_decode($response) : $response;
     }
+    
+    /**
+     * Get the pdf from the response.
+     *
+     * @param  bool  $decode
+     * @return mixed|null
+     */
+    public function getPdf(bool $decode = true)
+    {
+        $response = $this->response['pdf'];
+
+        return $decode ? base64_decode($response) : $response;
+    }
 }
