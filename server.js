@@ -10,12 +10,12 @@ const options = {
   maxConcurrency: parseInt(process.env.MAX_BROWSERS || 1),
   executablePath: process.env.CHROMIUM_PATH || '/usr/bin/google-chromne-stable',
   args: process.env.CHROMIUM_ARGS ? process.env.CHROMIUM_ARGS.split(' ') : ['--no-sandbox', '--disable-web-security'],
-  ignoreHTTPSErrors: parseInt(process.env.IGNORE_HTTPS_ERRORS || true),
-  monitor: parseInt(process.env.DEBUG || false),
+  ignoreHTTPSErrors: parseInt(process.env.IGNORE_HTTPS_ERRORS || 1),
+  monitor: parseInt(process.env.DEBUG || 0),
   defaultTimeout: parseInt(process.env.DEFAULT_TIMEOUT || 30),
 };
 
-app.use((err, req, res, next) => {
+app.use((err, req, res, next) => { 
   next(err);
 });
 
@@ -33,15 +33,19 @@ app.use('/healthcheck', require('express-healthcheck')());
     monitor: options.monitor,
   });
 
+
   await cluster.task(async ({ page, data: query }) => {
     const triggeredRequests = [];
     const consoleLines = [];
+    
+    const navigationPromise =  page.waitForNavigation();  
+   
+    //disable JavaScript on the page.
+    if(query.disable_javascript) {
+      await page.setJavaScriptEnabled(false);
+    }
 
-    // Set the viewport by default as 1920x1080
-    await page.setViewport({
-      width: 1920,
-      height: 1080,
-    });
+    
 
     // If ?viewport=[width]x[height] is present,
     // use the passed viewport.
@@ -53,7 +57,21 @@ app.use('/healthcheck', require('express-healthcheck')());
         height: parseInt(height),
       });
     }
-
+    else {
+      // Set the viewport by default as 1920x1080
+      await page.setViewport({
+        width: 1920,
+        height: 1080,
+      });
+    }
+       
+    //Dialog objects are dispatched by page via the 'dialog' event.
+    if (query.dismiss_dialogs) {
+      page.on('dialog', async dialog => {
+          await dialog.dismiss();
+      });
+    }
+    
     // Set the user agent randomly, based on the device, if existent.
     // Otherwise, set it default to desktop.
     await page.setUserAgent(
@@ -71,9 +89,33 @@ app.use('/healthcheck', require('express-healthcheck')());
         JSON.parse(query.extra_headers)
       );
     }
-
+    
+    // Provide credentials for HTTP authentication. 
+    if (query.authentication) {
+      await page.authenticate(query.authentication);
+    }
+    
+    //setCookie
+    if (query.cookies) {
+      await page.setCookie(...query.cookies);
+    }
+    
+    //This setting will change the default maximum navigation time for the following methods and related shortcuts:
+    //page.goBack([options])
+    //page.goForward([options])
+    //page.goto(url[, options])
+    //page.reload([options])
+    //page.setContent(html[, options])
+    //page.waitForNavigation([options])
+    if (query.navigation_timeout) {
+      await page.setDefaultNavigationTimeout(query.timeout); //Maximum navigation time in milliseconds
+    }
+     
+    //Activating request interception enables request.abort, request.continue and request.respond methods. 
+    //This provides the capability to modify network requests that are made by a page.
     await page.setRequestInterception(true);
 
+    //get console
     if (query.console_lines) {
       page.on('console', line => {
         consoleLines.push({
@@ -83,11 +125,20 @@ app.use('/healthcheck', require('express-healthcheck')());
         });
       });
     }
-
-
+    
+    //disable images  
+    if (query.disable_images) {
+      page.on('request', request => {
+          if (request.resourceType() === 'image')
+              request.abort();
+          else
+              request.continue();
+      });
+    }
+        
+    // Allow to block certain extensions.
+    // For example: ?blocked_extensions=.png,.jpg
     page.on('request', request => {
-      // Allow to block certain extensions.
-      // For example: ?blocked_extensions=.png,.jpg
       if (query.blocked_extensions) {
         // Example:
         // [
@@ -121,20 +172,83 @@ app.use('/healthcheck', require('express-healthcheck')());
 
       return request.continue();
     });
+    
+    const requestOptions = {};
+    
+    requestOptions.timeout = query.timeout ? parseInt(query.timeout) * 1000 : parseInt(options.defaultTimeout) * 1000;  //milliseconds (defaults to 30 seconds, pass 0 to disable timeout)
+    requestOptions.waitUntil = query.until_idle;
+    
+    const crawledPage = await page.goto(query.url, requestOptions);
 
-    const crawledPage = await page.goto(query.url, {
-      waitUntil: query.until_idle ? 'networkidle0' : 'networkidle2',
-      timeout: query.timeout ? query.timeout * 1000 : options.defaultTimeout * 1000,
-    });
-
-    const screenshot = query.screenshot ? await (async function () {
-      return await page.screenshot({
-        type: 'jpeg',
-        quality: parseInt(query.quality || 75),
-        fullPage: true,
-        encoding: 'base64',
+    
+    //This method fetches an element with selector, scrolls it into view if needed, and then uses page.mouse to click in the center of the element. 
+    //If there's no element matching selector, the method throws an error.
+    //Bear in mind that if click() triggers a navigation event and there's a separate page.waitForNavigation() promise to be resolved, 
+    //you may end up with a race condition that yields unexpected results. 
+    if (query.click) {
+      const clickIt = await page.click(query.click_selector, {
+            button: query.click_options['button'],
+            clickCount: parseInt(query.click_options['clickCount']),
+            delay: parseInt(query.click_options['delay']),
+        });
+      await navigationPromise;
+    }
+    
+    //Adds a <link rel="stylesheet"> tag into the page with the desired url or a <style type="text/css"> tag with the content.
+    if (query.add_style_tag) {
+      await page.addStyleTag({
+        url: (query.add_style_tag_url.length > 0 ? query.add_style_tag_url : null),
+        path: (query.add_style_tag_path.length > 0 ? query.add_style_tag_path : null), 
+        content: query.add_style_tag_content, 
       });
+      
+      await navigationPromise;
+    }
+    
+    //Adds a <script> tag into the page with the desired url or content.
+    if (query.add_script_tag) {
+      await page.addScriptTag({
+        url: (query.add_script_tag_url.length > 0 ? query.add_script_tag_url : null),
+        path: (query.add_script_tag_path.length > 0 ? query.add_script_tag_path : null), 
+        content: query.add_script_tag_content
+      });
+      
+      await navigationPromise;
+    }
+    
+    // wait for selector  ==> await page.waitFor('.foo');
+    // wait for 1 second  ==> await page.waitFor(1000);
+    // wait for predicate ==> await page.waitFor(() => !!document.querySelector('.foo'));
+    if (query.wait_for) {
+      await page.waitFor(query.wait_for);
+    }
+    
+    //Sends a keydown, keypress/input, and keyup event for each character in the text.
+    if (query.type) {
+      await page.type(query.type_selector, query.type_text, { delay: parseInt(query.type_delay) });
+      await navigationPromise;
+    }
+
+    const screenshot = query.screenshot ? await (async function () { 
+      //change "bool" string to bool
+      for (const [key, value] of Object.entries(query.screenshot_options)) {
+        if(value === 'false') query.screenshot_options[key] = false;  
+        if(value === 'true') query.screenshot_options[key] = true;  
+      }
+      
+      return await page.screenshot(query.screenshot_options);
     })() : null;
+
+    const pdf = query.pdf ? await (async function () {
+      //change "bool" string to bool
+      for (const [key, value] of Object.entries(query.pdf_options)) {
+        if(value === 'false') query.pdf_options[key] = false;  
+        if(value === 'true') query.pdf_options[key] = true;  
+      }
+
+      return await page.pdf(query.pdf_options);
+    })() : null;
+
 
     const html = query.html ? await page.evaluate(() => document.documentElement.innerHTML) : '';
 
@@ -147,12 +261,16 @@ app.use('/healthcheck', require('express-healthcheck')());
       cookies,
       html,
       screenshot,
+      pdf,
     }
   });
 
   app.get('/', async (req, res) => {
     try {
       const data = await cluster.execute(req.query);
+
+      //convert pdf binary to base64
+      if(data.pdf) data.pdf = data.pdf.toString('base64');
 
       return res.status(200).json({ data });
     } catch (err) {
@@ -166,6 +284,7 @@ app.use('/healthcheck', require('express-healthcheck')());
             cookies: [],
             html: '',
             screenshot: null,
+            pdf: null,
           },
         });
     }
