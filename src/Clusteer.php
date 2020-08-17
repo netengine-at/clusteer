@@ -2,6 +2,10 @@
 
 namespace RenokiCo\Clusteer;
 
+use Storage;
+
+use Illuminate\Support\Str;
+
 class Clusteer
 {
     const DESKTOP_DEVICE = 'desktop';
@@ -25,6 +29,13 @@ class Clusteer
      * @var string
      */
     protected $url;
+    
+    /**
+     * Get the URL to crawl.
+     *
+     * @var string
+     */
+    protected $tempFile = '';
 
     /**
      * Initialize a Clusteer instance with an URL.
@@ -48,6 +59,36 @@ class Clusteer
         $this->url = $url;
 
         return $this;
+    }
+    
+    /**
+     * Set the URL address.
+     *
+     * @param  string  $url
+     * @return $this
+     */
+    public function setTmpfile(string $tempFile)
+    {
+        $this->tempFile = $tempFile;
+
+        return $this;
+    }
+    
+    
+    /**
+     * Set the URL address.
+     *
+     * @param  string  $url
+     * @return $this
+     */
+    public static function loadHtml(string $html)
+    {
+        Storage::disk('public')->makeDirectory('clusteer', 'public');
+        $tmpfname = Str::random(40).'.html';
+        
+        Storage::disk('public')->put('clusteer/'.$tmpfname, $html);
+        
+        return (new static)->setUrl(url('storage/clusteer/'.$tmpfname))->setTmpfile('clusteer/'.$tmpfname);
     }
 
     /**
@@ -408,10 +449,14 @@ class Clusteer
      * @return ClusteerResponse
      */
     public function get(): ClusteerResponse
-    {
+    {      
         $response = json_decode(
             file_get_contents($this->getCallableUrl()), true
         )['data'];
+        
+        if(!empty($this->tempFile)) {
+          Storage::disk('public')->delete($this->tempFile);
+        }
 
         return new ClusteerResponse($response);
     }
@@ -436,7 +481,7 @@ class Clusteer
      * @return string
      */
     protected function getCallableUrl(): string
-    {
+    {       
         // Ensure url is at the end of the query string.
         $this->setParameter('url', $this->url);
 
