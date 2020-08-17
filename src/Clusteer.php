@@ -9,6 +9,8 @@ class Clusteer
     const TABLET_DEVICE = 'tablet';
 
     const MOBILE_DEVICE = 'mobile';
+    
+    protected $additionalOptions = [];
 
     /**
      * Get the parameters sent to Clusteer.
@@ -92,6 +94,163 @@ class Clusteer
     {
         return $this->setParameter('extra_headers', json_encode($headers));
     }
+       
+    /**
+     * Provide credentials for HTTP authentication.
+     *
+     * @param  string  $username
+     * @param  string  $password
+     * @return $this
+     */
+    public function authenticate(string $username, string $password)
+    {
+        $this->setParameter('authentication', compact('username', 'password'));
+
+        return $this;
+    }
+    
+    /**
+     * useCookies.
+     *
+     * @param  array  $headers
+     * @return $this
+     */
+    public function useCookies(array $cookies, string $domain = null)
+    {
+        if (! count($cookies)) {
+            return $this;
+        }
+
+        if (is_null($domain)) {
+            $domain = parse_url($this->url)['host'];
+        }
+
+        $cookies = array_map(function ($value, $name) use ($domain) {
+            return compact('name', 'value', 'domain');
+        }, $cookies, array_keys($cookies));
+
+        if (isset($this->additionalOptions['cookies'])) {
+            $cookies = array_merge($this->additionalOptions['cookies'], $cookies);
+        }
+
+        $this->setParameter('cookies', $cookies);
+    }
+    
+    
+    /**
+     * Set addStyleTag.
+     *
+     * @return $this
+     */
+    public function addStyleTag(string $url = '', string $path = '', string $content = '')
+    {
+        $this->setParameter('add_style_tag', 1);
+        $this->setParameter('add_style_tag_url', $url);
+        $this->setParameter('add_style_tag_path', $path);
+        $this->setParameter('add_style_tag_content', $content);
+        
+        return $this;
+    }
+    
+    /**
+     * Set addStyleTag.
+     *
+     * @return $this
+     */
+    public function addScriptTag(string $url = '', string $path = '', string $content = '')
+    {
+        $this->setParameter('add_script_tag', 1);
+        $this->setParameter('add_script_tag_url', $url);
+        $this->setParameter('add_script_tag_path', $path);
+        $this->setParameter('add_script_tag_content', $content);
+        
+        return $this;
+    }
+    
+    
+    
+    /**
+     * Set timeout.
+     *
+     * @param  int  $timeout (default 60 seconds)
+     * @return $this
+     */
+    public function waitFor($wait_for = 0)
+    {
+        $this->setParameter('wait_for', $wait_for);
+        
+        return $this;
+    }
+    
+    
+    /**
+     * Set timeout.
+     *
+     * @param  int  $timeout (default 60 seconds)
+     * @return $this
+     */
+    public function timeout(int $timeout = 60)
+    {
+        $this->setParameter('timeout', $timeout * 1000);
+        
+        return $this;
+    }
+    
+     
+    /**
+     * Set the extra headers. They get serialized as JSON.
+     *
+     * @param  array  $headers
+     * @return $this
+     */
+    public function clickIT(string $selector, $options = array())
+    {      
+        //button Defaults to left <"left"|"right"|"middle">
+        if(!array_key_exists('button', $options)) $options['button'] = "left";
+        
+        //clickCount <number> defaults to 1
+        if(!array_key_exists('clickCount', $options)) $options['clickCount'] = 1;
+        
+        //delay <number> Time to wait between mousedown and mouseup in milliseconds. Defaults to 0
+        if(!array_key_exists('delay ', $options)) $options['delay'] = 0;
+        
+        $options['delay'] = $options['delay'] * 1000; //milliseconds
+    
+        $this->setParameter('click_selector', $selector);
+        $this->setParameter('click_options', $options);
+        $this->setParameter('click', 1); 
+        
+        return $this;
+    }
+    
+    /**
+     * Set the extra headers. They get serialized as JSON.
+     *
+     * @param  array  $headers
+     * @return $this
+     */
+    public function typeIT(string $selector, string $text = '', int $delay = 0)
+    {            
+      //delay <number> Time to wait between key presses in milliseconds. Defaults to 0.
+      $delay = $delay * 1000;
+      
+      $this->setParameter('type_selector', $selector);
+      $this->setParameter('type_text', $text);
+      $this->setParameter('type_delay', $delay);
+      $this->setParameter('type', 1); 
+        
+      return $this;
+    }
+    
+    public function selectOption(string $selector, string $value = '')
+    {
+        $dropdownSelects = $this->additionalOptions['selects'] ?? [];
+
+        $dropdownSelects[] = compact('selector', 'value');
+
+        return $this->setParameter('selects', $dropdownSelects);
+    }
+  
 
     /**
      * Set the extensions to block.
@@ -99,9 +258,41 @@ class Clusteer
      * @param  array  $extensions
      * @return $this
      */
-    public function blockExtensions(array $extensions)
+    public function blockExtensions($extensions = array())
     {
         return $this->setParameter('blocked_extensions', implode(',', $extensions));
+    }
+    
+    
+    /**
+     * Set disable javascript.
+     *
+     * @return $this
+     */
+    public function disableJavascript()
+    {
+        return $this->setParameter('disable_javascript', 1);
+    }
+    
+    /**
+     * Set dismiss dialogs.
+     *
+     * @return $this
+     */
+    public function dismissDialogs()
+    {
+        return $this->setParameter('dismiss_dialogs', 1);
+    }
+    
+    
+    /**
+     * Set disable images.
+     *
+     * @return $this
+     */
+    public function disableImages()
+    {
+        return $this->setParameter('disable_images', 1);
     }
 
     /**
@@ -110,19 +301,25 @@ class Clusteer
      * @param  int  $seconds
      * @return $this
      */
-    public function timeout(int $seconds)
+    public function navigationTimeout(int $seconds)
     {
-        return $this->setParameter('timeout', $seconds);
+        return $this->setParameter('navigation_timeout', $seconds);
     }
 
     /**
      * Wait until all the requests get triggered.
+     *  
+     * load              - consider navigation to be finished when the load event is fired.
+     * domcontentloaded  - consider navigation to be finished when the DOMContentLoaded event is fired.
+     * networkidle0      - consider navigation to be finished when there are no more than 0 network connections for at least 500 ms.
+     * networkidle2      - consider navigation to be finished when there are no more than 2 network connections for at least 500 ms. 
      *
+     * @param  string  $option 
      * @return $this
      */
-    public function waitUntilAllRequestsFinish()
-    {
-        return $this->setParameter('until_idle', 1);
+    public function waitUntilAllRequestsFinish($option = 'networkidle0')
+    {   
+        return $this->setParameter('until_idle', $option);
     }
 
     /**
@@ -171,10 +368,38 @@ class Clusteer
      * @param  int  $quality
      * @return $this
      */
-    public function withScreenshot(int $quality = 75)
-    {
-        return $this->setParameter('screenshot', 1)
-            ->setParameter('quality', $quality);
+    public function withScreenshot($options = array())
+    { 
+      foreach($options AS $key => $option) {
+        if(is_bool($option) && $option === true) $options[$key] = "true";
+        else if(is_bool($option) && $option === false) $options[$key] = "false";
+      }
+      
+      $options['encoding'] = 'base64'; //standard
+      
+      $this->setParameter('screenshot_options', $options);
+      $this->setParameter('screenshot', 1);
+      
+      return $this;
+    }
+    
+    /**
+     * Output the pdf.
+     *
+     * @param  int  $quality
+     * @return $this
+     */
+    public function withPdf($options = array()) 
+    { 
+      foreach($options AS $key => $option) {
+        if(is_bool($option) && $option === true) $options[$key] = "true";
+        else if(is_bool($option) && $option === false) $options[$key] = "false";
+      }
+    
+      $this->setParameter('pdf_options', $options);
+      $this->setParameter('pdf', 1);
+        
+      return $this;
     }
 
     /**
