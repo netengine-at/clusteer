@@ -45,8 +45,6 @@ app.use('/healthcheck', require('express-healthcheck')());
       await page.setJavaScriptEnabled(false);
     }
 
-    
-
     // If ?viewport=[width]x[height] is present,
     // use the passed viewport.
     if (query.viewport) {
