@@ -88,7 +88,10 @@ class Clusteer
         
         Storage::disk('public')->put('clusteer/'.$tmpfname, $html);
         
-        return (new static)->setUrl(url('storage/clusteer/'.$tmpfname))->setTmpfile('clusteer/'.$tmpfname);
+        $url = url('storage/clusteer/'.$tmpfname);
+        dump($url);
+        
+        return (new static)->setUrl($url)->setTmpfile('clusteer/'.$tmpfname);
     }
 
     /**
@@ -98,9 +101,11 @@ class Clusteer
      * @param  int  $height
      * @return $this
      */
-    public function setViewport(int $width, int $height)
-    {
-        return $this->setParameter('viewport', "{$width}x{$height}");
+    public function setViewport(int $width, int $height, int $device_scale_factor = 1)
+    {   $this->setParameter('viewport', "{$width}x{$height}");
+        $this->setParameter('device_scale_factor', $device_scale_factor);
+    
+        return $this;
     }
 
     /**
@@ -401,6 +406,20 @@ class Clusteer
     public function withConsoleLines()
     {
         return $this->setParameter('console_lines', 1);
+    }
+    
+    public function waitForFunction(string $function, $polling = self::POLLING_REQUEST_ANIMATION_FRAME, int $timeout = 0)
+    {
+        $this->setParameter('functionPolling', $polling);
+        $this->setParameter('functionTimeout', $timeout);
+        $this->setParameter('function', $function);
+
+        return $this;
+    }
+    
+    public function pages(string $pages)
+    {
+        return $this->setOption('pageRanges', $pages);
     }
 
     /**
