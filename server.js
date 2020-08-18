@@ -13,6 +13,14 @@ const options = {
   ignoreHTTPSErrors: parseInt(process.env.IGNORE_HTTPS_ERRORS || 1),
   monitor: parseInt(process.env.DEBUG || 0),
   defaultTimeout: parseInt(process.env.DEFAULT_TIMEOUT || 30),
+  defaultViewport: {
+    width: parseInt(process.env.BROWSER_WIDTH || 800),
+    height: parseInt(process.env.BROWSER_HEIGHT || 600),
+    deviceScaleFactor: parseInt(process.env.DEVICE_SCALE_FACTOR || 1),
+    isMobile: parseInt(process.env.IS_MOBILE || 0),
+    hasTouch: parseInt(process.env.HAS_TOUCH || 0),
+    isLandscape: parseInt(process.env.IS_LANDSCAPE || 0),
+  }
 };
 
 app.use((err, req, res, next) => { 
@@ -28,6 +36,14 @@ app.use('/healthcheck', require('express-healthcheck')());
     puppeteerOptions: {
       executablePath: options.executablePath,
       ignoreHTTPSErrors: options.ignoreHTTPSErrors,
+      defaultViewport: {
+        width: options.defaultViewport.width,
+        height: options.defaultViewport.height,
+        deviceScaleFactor: options.defaultViewport.deviceScaleFactor,
+        isMobile: options.defaultViewport.isMobile,
+        hasTouch: options.defaultViewport.hasTouch,
+        isLandscape: options.defaultViewport.isLandscape,
+      },
       args: options.args,
     },
     monitor: options.monitor,
@@ -53,6 +69,7 @@ app.use('/healthcheck', require('express-healthcheck')());
       await page.setViewport({
         width: parseInt(width),
         height: parseInt(height),
+        deviceScaleFactor: parseInt(query.device_scale_factor),
       });
     }
     else {
@@ -60,6 +77,7 @@ app.use('/healthcheck', require('express-healthcheck')());
       await page.setViewport({
         width: 1920,
         height: 1080,
+        deviceScaleFactor: 1,
       });
     }
        
@@ -83,9 +101,8 @@ app.use('/healthcheck', require('express-healthcheck')());
 
     // If extra HTTP headers are set, apply them.
     if (query.extra_headers) {
-      await page.setExtraHTTPHeaders(
-        JSON.parse(query.extra_headers)
-      );
+      const extra_headers = JSON.parse(query.extra_headers);
+      await page.setExtraHTTPHeaders(extra_headers);
     }
     
     // Provide credentials for HTTP authentication. 
@@ -242,6 +259,7 @@ app.use('/healthcheck', require('express-healthcheck')());
       for (const [key, value] of Object.entries(query.pdf_options)) {
         if(value === 'false') query.pdf_options[key] = false;  
         if(value === 'true') query.pdf_options[key] = true;  
+        if(!isNaN(value)) query.pdf_options[key] = value * 1; //make value numeric
       }
 
       return await page.pdf(query.pdf_options);
