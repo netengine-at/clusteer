@@ -86,6 +86,20 @@ class ClusteerResponse
     }
     
     /**
+     * Get the save the screenshot from the response.
+     *
+     * @param  string  $path
+     */
+    public function saveScreenshot(string $path)
+    {
+        $response = $this->response['screenshot'];
+
+        \File::put($path, $response);
+        
+        return $this;
+    }
+    
+    /**
      * Get the pdf from the response.
      *
      * @param  bool  $decode
@@ -96,5 +110,19 @@ class ClusteerResponse
         $response = $this->response['pdf'];
 
         return $decode ? base64_decode($response) : $response;
+    }
+    
+    /**
+     * Get the save the PDF from the response.
+     *
+     * @param  string  $path
+     */
+    public function savePdf(string $path)
+    { 
+        $response = $this->response['pdf'];
+
+        \File::put($path, $response);
+        
+        return $this;
     }
 }
