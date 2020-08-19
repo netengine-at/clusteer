@@ -35,7 +35,7 @@ class Clusteer
      *
      * @var string
      */
-    protected $tempFile = '';
+    protected $tmpDir = '';
 
     /**
      * Initialize a Clusteer instance with an URL.
@@ -59,21 +59,7 @@ class Clusteer
         $this->url = $url;
 
         return $this;
-    }
-    
-    /**
-     * Set the URL address.
-     *
-     * @param  string  $url
-     * @return $this
-     */
-    public function setTmpfile(string $tempFile)
-    {
-        $this->tempFile = $tempFile;
-
-        return $this;
-    }
-    
+    }  
     
     /**
      * Set the URL address.
@@ -83,15 +69,19 @@ class Clusteer
      */
     public static function loadHtml(string $html)
     {
-        Storage::disk('public')->makeDirectory('clusteer', 'public');
-        $tmpfname = Str::random(40).'.html';
+        $tmp = new static();
+
+        if(empty($tmp->tmpDir)) {
+          $tmp->createTemporaryDirectory();
+        }       
+        Storage::disk('public')->put('clusteer/'.$tmp->tmpDir.'/index.html', $html);
         
-        Storage::disk('public')->put('clusteer/'.$tmpfname, $html);
+        $url = url('storage/clusteer/'.$tmp->tmpDir.'/index.html'); 
+        dump('$tmp->tmpDir: '.$tmp->tmpDir);
         
-        $url = url('storage/clusteer/'.$tmpfname);
-        dump($url);
-        
-        return (new static)->setUrl($url)->setTmpfile('clusteer/'.$tmpfname);
+        $tmp->setUrl($url);
+   
+        return $tmp;
     }
 
     /**
@@ -419,7 +409,17 @@ class Clusteer
     
     public function pages(string $pages)
     {
-        return $this->setOption('pageRanges', $pages);
+      return $this->setOption('pageRanges', $pages);
+    }
+    
+    public function clip(int $x, int $y, int $width, int $height)
+    {
+      return $this->setParameter('clip', compact('x', 'y', 'width', 'height'));
+    }
+
+    public function select($selector)
+    {
+       return $this->setParameter('selector', $selector);
     }
 
     /**
@@ -472,11 +472,11 @@ class Clusteer
         $response = json_decode(
             file_get_contents($this->getCallableUrl()), true
         )['data'];
-        
-        if(!empty($this->tempFile)) {
-          Storage::disk('public')->delete($this->tempFile);
+               
+        if(!empty($this->tmpDir)) {
+          $del = \File::deleteDirectory(public_path().'/storage/clusteer/'.$this->tmpDir);
         }
-
+        
         return new ClusteerResponse($response);
     }
 
@@ -507,6 +507,36 @@ class Clusteer
         $endpoint = config('clusteer.endpoint');
         $query = http_build_query($this->query);
 
-        return "{$endpoint}?{$query}";
+        $config_file = $this->createTemporaryOptionsFile($this->query);
+
+        return "{$endpoint}?url={$this->url}&options={$config_file}";
     }
+    
+    protected function createTemporaryDirectory() {
+      Storage::disk('public')->makeDirectory('clusteer', 'public');
+        
+      do {
+        $tmpDir = Str::random(40);
+        $tmpdirCheck = public_path().'/storage/clusteer/'.$tmpDir;
+      } while(file_exists($tmpdirCheck));
+      
+      Storage::disk('public')->makeDirectory('/clusteer/'.$tmpDir, 'public');
+      $this->tmpDir = $tmpDir;
+      //chmod($tmpdirCheck.'/command.js', 0777);
+      
+      return true;
+    }
+    
+    protected function createTemporaryOptionsFile($options)
+    {   
+        if(empty($this->tmpDir)) {
+          $this->createTemporaryDirectory();
+        }
+        
+        Storage::disk('public')->put('/clusteer/'.$this->tmpDir.'/command.js', json_encode($options));
+        
+        
+        return public_path().'/storage/clusteer/'.$this->tmpDir.'/command.js';
+    }
+
 }
