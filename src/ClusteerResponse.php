@@ -91,13 +91,14 @@ class ClusteerResponse
      * @param  string  $path
      */
     public function saveScreenshot(string $path)
-    {
-        $response = $this->response['screenshot'];
-
-        \File::put($path, $response);
+    { 
+      $content = base64_decode($this->response['screenshot']);
+      
+      \File::put($path, $content); 
         
-        return $this;
+      return $this;
     }
+    
     
     /**
      * Get the pdf from the response.
@@ -119,7 +120,7 @@ class ClusteerResponse
      */
     public function savePdf(string $path)
     { 
-        $response = $this->response['pdf'];
+        $response = base64_decode($this->response['pdf']);
 
         \File::put($path, $response);
         
