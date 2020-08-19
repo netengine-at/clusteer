@@ -15,6 +15,12 @@ class ServeClusteer extends Command
         {--max-browsers=1 : The maximum amount of browsers to run at once.}
         {--chromium-args=* : The arguments to pass to the Chromium browser.}
         {--ignore-https-errors : Wether HTTPS errors should be ignored.}
+        {--browser-width=800 : page width in pixels.}
+        {--browser-height=600 : page height in pixels.}
+        {--device-scale-factor=1 : Specify device scale factor (can be thought of as dpr). Defaults to 1.}
+        {--is-mobile=0 :  Whether the meta viewport tag is taken into account. Defaults to false.}
+        {--has-touch=0 : Specifies if viewport supports touch events. Defaults to false.}
+        {--is-landscape=0 : Specifies if viewport is in landscape mode. Defaults to false.}
         {--debug : Enable the debugging.}
         {--default-timeout : The default timeout, in seconds, for any page\'s crawling.}
         {--chromium-path= : The path to the Chromium path.}
@@ -42,6 +48,12 @@ class ServeClusteer extends Command
         'debug' => 'DEBUG',
         'default-timeout' => 'DEFAULT_TIMEOUT',
         'chromium-path' => 'CHROMIUM_PATH',
+        'browser-width' => 'BROWSER_WIDTH', 
+        'browser-height' => 'BROWSER_HEIGHT', 
+        'device-scale-factor' => 'DEVICE_SCALE_FACTOR', 
+        'is-mobile' => 'IS_MOBILE', 
+        'has-touch' => 'HAS_TOUCH',
+        'is-landscape' => 'IS_LANDSCAPE',
     ];
 
     /**
