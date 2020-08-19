@@ -4,6 +4,8 @@ const express = require('express');
 const { Cluster } = require('puppeteer-cluster');
 const randomUserAgent = require('random-user-agent');
 const app = express();
+const fs = require('fs');
+const URL = require('url').URL;
 
 const options = {
   port: parseInt(process.env.PORT || 8080),
@@ -48,6 +50,11 @@ app.use('/healthcheck', require('express-healthcheck')());
     },
     monitor: options.monitor,
   });
+  
+  // Event handler to be called in case of problems
+  cluster.on('taskerror', (err, data) => {
+    console.log(`Error crawling ${data}: ${err.message}`);
+  });
 
 
   await cluster.task(async ({ page, data: query }) => {
@@ -55,6 +62,15 @@ app.use('/healthcheck', require('express-healthcheck')());
     const consoleLines = [];
     
     const navigationPromise =  page.waitForNavigation();  
+    
+    if(query.options) {     
+      try {
+        query = JSON.parse(fs.readFileSync(query.options, 'utf8'));
+      } 
+      catch (exception) {
+        console.log(exception);
+      }
+    }
    
     //disable JavaScript on the page.
     if(query.disable_javascript) {
@@ -238,6 +254,14 @@ app.use('/healthcheck', require('express-healthcheck')());
       await page.waitFor(query.wait_for);
     }
     
+    if (query.selector) {
+      const element = await page.$(query.selector);
+      if (element === null) {
+        throw {type: 'ElementNotFound'};
+      }
+      query.clip = await element.boundingBox();
+    }
+    
     //Sends a keydown, keypress/input, and keyup event for each character in the text.
     if (query.type) {
       await page.type(query.type_selector, query.type_text, { delay: parseInt(query.type_delay) });
@@ -280,7 +304,8 @@ app.use('/healthcheck', require('express-healthcheck')());
       pdf,
     }
   });
-
+  
+  
   app.get('/', async (req, res) => {
     try {
       const data = await cluster.execute(req.query);
