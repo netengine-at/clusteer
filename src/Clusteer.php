@@ -2,9 +2,11 @@
 
 namespace RenokiCo\Clusteer;
 
+use Illuminate\Support\Str;
+
 use Storage;
 
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 
 class Clusteer
 {
@@ -77,7 +79,6 @@ class Clusteer
         Storage::disk('public')->put('clusteer/'.$tmp->tmpDir.'/index.html', $html);
         
         $url = url('storage/clusteer/'.$tmp->tmpDir.'/index.html'); 
-        dump('$tmp->tmpDir: '.$tmp->tmpDir);
         
         $tmp->setUrl($url);
    
@@ -475,6 +476,11 @@ class Clusteer
                
         if(!empty($this->tmpDir)) {
           $del = \File::deleteDirectory(public_path().'/storage/clusteer/'.$this->tmpDir);
+        }
+        
+        if(!is_null($response['error'])) {
+          Log::debug($response['error']);
+          dump($response['error']);
         }
         
         return new ClusteerResponse($response);
