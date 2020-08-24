@@ -53,7 +53,20 @@ app.use('/healthcheck', require('express-healthcheck')());
   
   // Event handler to be called in case of problems
   cluster.on('taskerror', (err, data) => {
-    console.log(`Error crawling ${data}: ${err.message}`);
+    return res
+        .status(200)
+        .json({
+          data: {
+            status: 500,
+            triggered_requests: [],
+            console_lines: [],
+            cookies: [],
+            html: '',
+            screenshot: null,
+            pdf: null,
+            error: err.message
+          },
+        });
   });
 
 
@@ -275,6 +288,13 @@ app.use('/healthcheck', require('express-healthcheck')());
         if(value === 'true') query.screenshot_options[key] = true;  
       }
       
+      if(query.selector) {
+        for (const [key, value] of Object.entries(query.clip)) {
+          query.clip[key] = value.toFixed(2) * 1;
+        }
+        query.screenshot_options.clip = query.clip;
+      }
+           
       return await page.screenshot(query.screenshot_options);
     })() : null;
 
@@ -302,6 +322,7 @@ app.use('/healthcheck', require('express-healthcheck')());
       html,
       screenshot,
       pdf,
+      error: null
     }
   });
   
@@ -326,6 +347,7 @@ app.use('/healthcheck', require('express-healthcheck')());
             html: '',
             screenshot: null,
             pdf: null,
+            error: err.message
           },
         });
     }
