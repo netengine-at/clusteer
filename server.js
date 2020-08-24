@@ -152,7 +152,7 @@ app.use('/healthcheck', require('express-healthcheck')());
     //page.setContent(html[, options])
     //page.waitForNavigation([options])
     if (query.navigation_timeout) {
-      await page.setDefaultNavigationTimeout(query.timeout); //Maximum navigation time in milliseconds
+      await page.setDefaultNavigationTimeout(query.navigation_timeout); //Maximum navigation time in milliseconds
     }
      
     //Activating request interception enables request.abort, request.continue and request.respond methods. 
@@ -274,11 +274,19 @@ app.use('/healthcheck', require('express-healthcheck')());
       }
       query.clip = await element.boundingBox();
     }
-    
+       
     //Sends a keydown, keypress/input, and keyup event for each character in the text.
     if (query.type) {
       await page.type(query.type_selector, query.type_text, { delay: parseInt(query.type_delay) });
       await navigationPromise;
+    }
+    
+    if (query.function) {
+      let functionOptions = {
+          polling: query.functionPolling,
+          timeout: query.functionTimeout || query.timeout
+      };
+      await page.waitForFunction(query.function, functionOptions);
     }
 
     const screenshot = query.screenshot ? await (async function () { 
