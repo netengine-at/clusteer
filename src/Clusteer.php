@@ -4,7 +4,7 @@ namespace RenokiCo\Clusteer;
 
 use Illuminate\Support\Str;
 
-use Storage;
+use Storage, Exception;
 
 use Illuminate\Support\Facades\Log;
 
@@ -15,7 +15,7 @@ class Clusteer
     const TABLET_DEVICE = 'tablet';
 
     const MOBILE_DEVICE = 'mobile';
-    
+
     protected $additionalOptions = [];
 
     /**
@@ -31,7 +31,7 @@ class Clusteer
      * @var string
      */
     protected $url;
-    
+
     /**
      * Get the URL to crawl.
      *
@@ -61,8 +61,8 @@ class Clusteer
         $this->url = $url;
 
         return $this;
-    }  
-    
+    }
+
     /**
      * Set the URL address.
      *
@@ -75,13 +75,13 @@ class Clusteer
 
         if(empty($tmp->tmpDir)) {
           $tmp->createTemporaryDirectory();
-        }       
+        }
         Storage::disk('public')->put('clusteer/'.$tmp->tmpDir.'/index.html', $html);
-        
-        $url = url('storage/clusteer/'.$tmp->tmpDir.'/index.html'); 
-        
+
+        $url = url('storage/clusteer/'.$tmp->tmpDir.'/index.html');
+
         $tmp->setUrl($url);
-   
+
         return $tmp;
     }
 
@@ -95,7 +95,7 @@ class Clusteer
     public function setViewport(int $width, int $height, int $device_scale_factor = 1)
     {   $this->setParameter('viewport', "{$width}x{$height}");
         $this->setParameter('device_scale_factor', $device_scale_factor);
-    
+
         return $this;
     }
 
@@ -131,7 +131,7 @@ class Clusteer
     {
         return $this->setParameter('extra_headers', json_encode($headers));
     }
-       
+
     /**
      * Provide credentials for HTTP authentication.
      *
@@ -145,7 +145,7 @@ class Clusteer
 
         return $this;
     }
-    
+
     /**
      * useCookies.
      *
@@ -172,8 +172,8 @@ class Clusteer
 
         $this->setParameter('cookies', $cookies);
     }
-    
-    
+
+
     /**
      * Set addStyleTag.
      *
@@ -185,10 +185,10 @@ class Clusteer
         $this->setParameter('add_style_tag_url', $url);
         $this->setParameter('add_style_tag_path', $path);
         $this->setParameter('add_style_tag_content', $content);
-        
+
         return $this;
     }
-    
+
     /**
      * Set addStyleTag.
      *
@@ -200,12 +200,12 @@ class Clusteer
         $this->setParameter('add_script_tag_url', $url);
         $this->setParameter('add_script_tag_path', $path);
         $this->setParameter('add_script_tag_content', $content);
-        
+
         return $this;
     }
-    
-    
-    
+
+
+
     /**
      * Set timeout.
      *
@@ -215,11 +215,11 @@ class Clusteer
     public function waitFor($wait_for = 0)
     {
         $this->setParameter('wait_for', $wait_for);
-        
+
         return $this;
     }
-    
-    
+
+
     /**
      * Set timeout.
      *
@@ -229,11 +229,11 @@ class Clusteer
     public function timeout(int $timeout = 60)
     {
         $this->setParameter('timeout', $timeout * 1000);
-        
+
         return $this;
     }
-    
-     
+
+
     /**
      * Set the extra headers. They get serialized as JSON.
      *
@@ -241,25 +241,25 @@ class Clusteer
      * @return $this
      */
     public function clickIT(string $selector, $options = array())
-    {      
+    {
         //button Defaults to left <"left"|"right"|"middle">
         if(!array_key_exists('button', $options)) $options['button'] = "left";
-        
+
         //clickCount <number> defaults to 1
         if(!array_key_exists('clickCount', $options)) $options['clickCount'] = 1;
-        
+
         //delay <number> Time to wait between mousedown and mouseup in milliseconds. Defaults to 0
         if(!array_key_exists('delay ', $options)) $options['delay'] = 0;
-        
+
         $options['delay'] = $options['delay'] * 1000; //milliseconds
-    
+
         $this->setParameter('click_selector', $selector);
         $this->setParameter('click_options', $options);
-        $this->setParameter('click', 1); 
-        
+        $this->setParameter('click', 1);
+
         return $this;
     }
-    
+
     /**
      * Set the extra headers. They get serialized as JSON.
      *
@@ -267,18 +267,18 @@ class Clusteer
      * @return $this
      */
     public function typeIT(string $selector, string $text = '', int $delay = 0)
-    {            
+    {
       //delay <number> Time to wait between key presses in milliseconds. Defaults to 0.
       $delay = $delay * 1000;
-      
+
       $this->setParameter('type_selector', $selector);
       $this->setParameter('type_text', $text);
       $this->setParameter('type_delay', $delay);
-      $this->setParameter('type', 1); 
-        
+      $this->setParameter('type', 1);
+
       return $this;
     }
-    
+
     public function selectOption(string $selector, string $value = '')
     {
         $dropdownSelects = $this->additionalOptions['selects'] ?? [];
@@ -287,7 +287,7 @@ class Clusteer
 
         return $this->setParameter('selects', $dropdownSelects);
     }
-  
+
 
     /**
      * Set the extensions to block.
@@ -299,8 +299,8 @@ class Clusteer
     {
         return $this->setParameter('blocked_extensions', implode(',', $extensions));
     }
-    
-    
+
+
     /**
      * Set disable javascript.
      *
@@ -310,7 +310,7 @@ class Clusteer
     {
         return $this->setParameter('disable_javascript', 1);
     }
-    
+
     /**
      * Set dismiss dialogs.
      *
@@ -320,8 +320,8 @@ class Clusteer
     {
         return $this->setParameter('dismiss_dialogs', 1);
     }
-    
-    
+
+
     /**
      * Set disable images.
      *
@@ -333,29 +333,29 @@ class Clusteer
     }
 
     /**
-     * Set the timeout.
+     * Set the Maximum navigation time in milliseconds.
      *
-     * @param  int  $seconds
+     * @param  int  $milliseconds
      * @return $this
      */
-    public function navigationTimeout(int $seconds)
+    public function navigationTimeout(int $milliseconds)
     {
-        return $this->setParameter('navigation_timeout', $seconds);
+        return $this->setParameter('navigation_timeout', $milliseconds);
     }
 
     /**
      * Wait until all the requests get triggered.
-     *  
+     *
      * load              - consider navigation to be finished when the load event is fired.
      * domcontentloaded  - consider navigation to be finished when the DOMContentLoaded event is fired.
      * networkidle0      - consider navigation to be finished when there are no more than 0 network connections for at least 500 ms.
-     * networkidle2      - consider navigation to be finished when there are no more than 2 network connections for at least 500 ms. 
+     * networkidle2      - consider navigation to be finished when there are no more than 2 network connections for at least 500 ms.
      *
-     * @param  string  $option 
+     * @param  string  $option
      * @return $this
      */
     public function waitUntilAllRequestsFinish($option = 'networkidle0')
-    {   
+    {
         return $this->setParameter('until_idle', $option);
     }
 
@@ -398,8 +398,8 @@ class Clusteer
     {
         return $this->setParameter('console_lines', 1);
     }
-    
-    public function waitForFunction(string $function, $polling = self::POLLING_REQUEST_ANIMATION_FRAME, int $timeout = 0)
+
+    public function waitForFunction(string $function, $polling = 'raf', int $timeout = 0)
     {
         $this->setParameter('functionPolling', $polling);
         $this->setParameter('functionTimeout', $timeout);
@@ -407,12 +407,12 @@ class Clusteer
 
         return $this;
     }
-    
+
     public function pages(string $pages)
     {
       return $this->setOption('pageRanges', $pages);
     }
-    
+
     public function clip(int $x, int $y, int $width, int $height)
     {
       return $this->setParameter('clip', compact('x', 'y', 'width', 'height'));
@@ -430,36 +430,36 @@ class Clusteer
      * @return $this
      */
     public function withScreenshot($options = array())
-    { 
+    {
       foreach($options AS $key => $option) {
         if(is_bool($option) && $option === true) $options[$key] = "true";
         else if(is_bool($option) && $option === false) $options[$key] = "false";
       }
-      
+
       $options['encoding'] = 'base64'; //standard
-      
+
       $this->setParameter('screenshot_options', $options);
       $this->setParameter('screenshot', 1);
-      
+
       return $this;
     }
-    
+
     /**
      * Output the pdf.
      *
      * @param  int  $quality
      * @return $this
      */
-    public function withPdf($options = array()) 
-    { 
+    public function withPdf($options = array())
+    {
       foreach($options AS $key => $option) {
         if(is_bool($option) && $option === true) $options[$key] = "true";
         else if(is_bool($option) && $option === false) $options[$key] = "false";
       }
-    
+
       $this->setParameter('pdf_options', $options);
       $this->setParameter('pdf', 1);
-        
+
       return $this;
     }
 
@@ -469,20 +469,20 @@ class Clusteer
      * @return ClusteerResponse
      */
     public function get(): ClusteerResponse
-    {      
+    {
         $response = json_decode(
             file_get_contents($this->getCallableUrl()), true
         )['data'];
-               
+
         if(!empty($this->tmpDir)) {
           $del = \File::deleteDirectory(public_path().'/storage/clusteer/'.$this->tmpDir);
         }
-        
+//dump($response);exit;
         if(!is_null($response['error'])) {
           Log::debug($response['error']);
-          dump($response['error']);
+          throw new Exception($response['error']);
         }
-        
+
         return new ClusteerResponse($response);
     }
 
@@ -506,7 +506,7 @@ class Clusteer
      * @return string
      */
     protected function getCallableUrl(): string
-    {       
+    {
         // Ensure url is at the end of the query string.
         $this->setParameter('url', $this->url);
 
@@ -517,31 +517,31 @@ class Clusteer
 
         return "{$endpoint}?url={$this->url}&options={$config_file}";
     }
-    
+
     protected function createTemporaryDirectory() {
       Storage::disk('public')->makeDirectory('clusteer', 'public');
-        
+
       do {
         $tmpDir = Str::random(40);
         $tmpdirCheck = public_path().'/storage/clusteer/'.$tmpDir;
       } while(file_exists($tmpdirCheck));
-      
+
       Storage::disk('public')->makeDirectory('/clusteer/'.$tmpDir, 'public');
       $this->tmpDir = $tmpDir;
       //chmod($tmpdirCheck.'/command.js', 0777);
-      
+
       return true;
     }
-    
+
     protected function createTemporaryOptionsFile($options)
-    {   
+    {
         if(empty($this->tmpDir)) {
           $this->createTemporaryDirectory();
         }
-        
+
         Storage::disk('public')->put('/clusteer/'.$this->tmpDir.'/command.js', json_encode($options));
-        
-        
+
+
         return public_path().'/storage/clusteer/'.$this->tmpDir.'/command.js';
     }
 
