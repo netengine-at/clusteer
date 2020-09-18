@@ -268,9 +268,14 @@ app.use('/healthcheck', require('express-healthcheck')());
     }
 
     if (query.wait_for_selector) {
-      await page.waitForSelector(query.wait_for_selector, { timeout: query.wait_for_selector }).then(
-        //okay it worked
-      );
+      try {
+        await page.waitForSelector(query.wait_for_selector, { timeout: query.wait_for_selector_timeout.toFixed(2) * 1 }).then(
+          //okay it worked
+        );
+      }
+      catch (exception) {
+        console.log(exception);
+      }
     }
 
     if (query.selector) {
