@@ -219,6 +219,20 @@ class Clusteer
         return $this;
     }
 
+    /**
+     * Wait for the selector to appear in page. If at the moment of calling the method the selector already exists, the method will return immediately.
+     * If the selector doesn't appear after the timeout milliseconds of waiting, the function will throw.
+     *
+     * @param  int  $timeout (default 60 seconds)
+     * @return $this
+     */
+    public function waitForSelector(string $selector, $timeout = 60000)
+    {
+        $this->setParameter('wait_for_selector', $selector);
+        $this->setParameter('wait_for_selector_timeout', $timeout);
+
+        return $this;
+    }
 
     /**
      * Set timeout.
