@@ -25,7 +25,7 @@ const options = {
   }
 };
 
-app.use((err, req, res, next) => { 
+app.use((err, req, res, next) => {
   next(err);
 });
 
@@ -50,7 +50,7 @@ app.use('/healthcheck', require('express-healthcheck')());
     },
     monitor: options.monitor,
   });
-  
+
   // Event handler to be called in case of problems
   cluster.on('taskerror', (err, data) => {
     return res
@@ -73,18 +73,18 @@ app.use('/healthcheck', require('express-healthcheck')());
   await cluster.task(async ({ page, data: query }) => {
     const triggeredRequests = [];
     const consoleLines = [];
-    
-    const navigationPromise =  page.waitForNavigation();  
-    
-    if(query.options) {     
+
+    const navigationPromise =  page.waitForNavigation();
+
+    if(query.options) {
       try {
         query = JSON.parse(fs.readFileSync(query.options, 'utf8'));
-      } 
+      }
       catch (exception) {
         console.log(exception);
       }
     }
-   
+
     //disable JavaScript on the page.
     if(query.disable_javascript) {
       await page.setJavaScriptEnabled(false);
@@ -109,14 +109,14 @@ app.use('/healthcheck', require('express-healthcheck')());
         deviceScaleFactor: 1,
       });
     }
-       
+
     //Dialog objects are dispatched by page via the 'dialog' event.
     if (query.dismiss_dialogs) {
       page.on('dialog', async dialog => {
           await dialog.dismiss();
       });
     }
-    
+
     // Set the user agent randomly, based on the device, if existent.
     // Otherwise, set it default to desktop.
     await page.setUserAgent(
@@ -133,17 +133,17 @@ app.use('/healthcheck', require('express-healthcheck')());
       const extra_headers = JSON.parse(query.extra_headers);
       await page.setExtraHTTPHeaders(extra_headers);
     }
-    
-    // Provide credentials for HTTP authentication. 
+
+    // Provide credentials for HTTP authentication.
     if (query.authentication) {
       await page.authenticate(query.authentication);
     }
-    
+
     //setCookie
     if (query.cookies) {
       await page.setCookie(...query.cookies);
     }
-    
+
     //This setting will change the default maximum navigation time for the following methods and related shortcuts:
     //page.goBack([options])
     //page.goForward([options])
@@ -154,8 +154,8 @@ app.use('/healthcheck', require('express-healthcheck')());
     if (query.navigation_timeout) {
       await page.setDefaultNavigationTimeout(query.navigation_timeout); //Maximum navigation time in milliseconds
     }
-     
-    //Activating request interception enables request.abort, request.continue and request.respond methods. 
+
+    //Activating request interception enables request.abort, request.continue and request.respond methods.
     //This provides the capability to modify network requests that are made by a page.
     await page.setRequestInterception(true);
 
@@ -169,8 +169,8 @@ app.use('/healthcheck', require('express-healthcheck')());
         });
       });
     }
-    
-    //disable images  
+
+    //disable images
     if (query.disable_images) {
       page.on('request', request => {
           if (request.resourceType() === 'image')
@@ -179,7 +179,7 @@ app.use('/healthcheck', require('express-healthcheck')());
               request.continue();
       });
     }
-        
+
     // Allow to block certain extensions.
     // For example: ?blocked_extensions=.png,.jpg
     page.on('request', request => {
@@ -216,19 +216,19 @@ app.use('/healthcheck', require('express-healthcheck')());
 
       return request.continue();
     });
-    
+
     const requestOptions = {};
-    
+
     requestOptions.timeout = query.timeout ? parseInt(query.timeout) * 1000 : parseInt(options.defaultTimeout) * 1000;  //milliseconds (defaults to 30 seconds, pass 0 to disable timeout)
     requestOptions.waitUntil = query.until_idle;
-    
+
     const crawledPage = await page.goto(query.url, requestOptions);
 
-    
-    //This method fetches an element with selector, scrolls it into view if needed, and then uses page.mouse to click in the center of the element. 
+
+    //This method fetches an element with selector, scrolls it into view if needed, and then uses page.mouse to click in the center of the element.
     //If there's no element matching selector, the method throws an error.
-    //Bear in mind that if click() triggers a navigation event and there's a separate page.waitForNavigation() promise to be resolved, 
-    //you may end up with a race condition that yields unexpected results. 
+    //Bear in mind that if click() triggers a navigation event and there's a separate page.waitForNavigation() promise to be resolved,
+    //you may end up with a race condition that yields unexpected results.
     if (query.click) {
       const clickIt = await page.click(query.click_selector, {
             button: query.click_options['button'],
@@ -237,36 +237,42 @@ app.use('/healthcheck', require('express-healthcheck')());
         });
       await navigationPromise;
     }
-    
+
     //Adds a <link rel="stylesheet"> tag into the page with the desired url or a <style type="text/css"> tag with the content.
     if (query.add_style_tag) {
       await page.addStyleTag({
         url: (query.add_style_tag_url.length > 0 ? query.add_style_tag_url : null),
-        path: (query.add_style_tag_path.length > 0 ? query.add_style_tag_path : null), 
-        content: query.add_style_tag_content, 
+        path: (query.add_style_tag_path.length > 0 ? query.add_style_tag_path : null),
+        content: query.add_style_tag_content,
       });
-      
+
       await navigationPromise;
     }
-    
+
     //Adds a <script> tag into the page with the desired url or content.
     if (query.add_script_tag) {
       await page.addScriptTag({
         url: (query.add_script_tag_url.length > 0 ? query.add_script_tag_url : null),
-        path: (query.add_script_tag_path.length > 0 ? query.add_script_tag_path : null), 
+        path: (query.add_script_tag_path.length > 0 ? query.add_script_tag_path : null),
         content: query.add_script_tag_content
       });
-      
+
       await navigationPromise;
     }
-    
+
     // wait for selector  ==> await page.waitFor('.foo');
     // wait for 1 second  ==> await page.waitFor(1000);
     // wait for predicate ==> await page.waitFor(() => !!document.querySelector('.foo'));
     if (query.wait_for) {
       await page.waitFor(query.wait_for);
     }
-    
+
+    if (query.wait_for_selector) {
+      await page.waitForSelector(query.wait_for_selector, { timeout: query.wait_for_selector }).then(
+        //okay it worked
+      );
+    }
+
     if (query.selector) {
       const element = await page.$(query.selector);
       if (element === null) {
@@ -274,13 +280,13 @@ app.use('/healthcheck', require('express-healthcheck')());
       }
       query.clip = await element.boundingBox();
     }
-       
+
     //Sends a keydown, keypress/input, and keyup event for each character in the text.
     if (query.type) {
       await page.type(query.type_selector, query.type_text, { delay: parseInt(query.type_delay) });
       await navigationPromise;
     }
-    
+
     if (query.function) {
       let functionOptions = {
           polling: query.functionPolling,
@@ -289,28 +295,28 @@ app.use('/healthcheck', require('express-healthcheck')());
       await page.waitForFunction(query.function, functionOptions);
     }
 
-    const screenshot = query.screenshot ? await (async function () { 
+    const screenshot = query.screenshot ? await (async function () {
       //change "bool" string to bool
       for (const [key, value] of Object.entries(query.screenshot_options)) {
-        if(value === 'false') query.screenshot_options[key] = false;  
-        if(value === 'true') query.screenshot_options[key] = true;  
+        if(value === 'false') query.screenshot_options[key] = false;
+        if(value === 'true') query.screenshot_options[key] = true;
       }
-      
+
       if(query.selector) {
         for (const [key, value] of Object.entries(query.clip)) {
           query.clip[key] = value.toFixed(2) * 1;
         }
         query.screenshot_options.clip = query.clip;
       }
-           
+
       return await page.screenshot(query.screenshot_options);
     })() : null;
 
     const pdf = query.pdf ? await (async function () {
       //change "bool" string to bool
       for (const [key, value] of Object.entries(query.pdf_options)) {
-        if(value === 'false') query.pdf_options[key] = false;  
-        if(value === 'true') query.pdf_options[key] = true;  
+        if(value === 'false') query.pdf_options[key] = false;
+        if(value === 'true') query.pdf_options[key] = true;
         if(!isNaN(value)) query.pdf_options[key] = value * 1; //make value numeric
       }
 
@@ -333,8 +339,8 @@ app.use('/healthcheck', require('express-healthcheck')());
       error: null
     }
   });
-  
-  
+
+
   app.get('/', async (req, res) => {
     try {
       const data = await cluster.execute(req.query);
@@ -363,7 +369,7 @@ app.use('/healthcheck', require('express-healthcheck')());
 
   const server = app.listen(options.port, () => {
     console.log(`Clusteer server running on port ${options.port}.`)
-    console.log(`Options: `, options);
+    //console.log(`Options: `, options);
   });
 
   // Make sure the app responds to SIGTERM and SIGINT so
